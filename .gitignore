@@ -1,0 +1,61 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+frontend/.env.local
+backend/.env
+backend/.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node and frontend build
+node_modules/
+frontend/dist/
+dist/
+*.tsbuildinfo
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded files and generated reports
+uploads/*
+!uploads/.gitkeep
+reports/*
+!reports/.gitkeep
+
+# Model weights and large model files
+*.pt
+*.pth
+*.onnx
+*.engine
+*.weights
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test and coverage artifacts
+.coverage.*
+coverage.xml
+frontend/audit-report.json

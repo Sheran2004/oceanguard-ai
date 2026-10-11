@@ -1,0 +1,49 @@
+# OceanGuard AI - Object Class Configuration
+# Maps class IDs to human-readable names and priority hints.
+# Edit this file to add or rename classes without changing code.
+
+classes:
+  0:
+    id: marine_debris
+    name: Marine Debris
+    description: General underwater debris of uncertain origin
+    base_priority: medium
+    is_anomaly: false
+  1:
+    id: fishing_net
+    name: Fishing Net
+    description: Net-like structure, often discarded fishing gear
+    base_priority: high
+    is_anomaly: false
+  2:
+    id: plastic_debris
+    name: Plastic Debris
+    description: Plastic-like debris field
+    base_priority: medium
+    is_anomaly: false
+  3:
+    id: metal_object
+    name: Metal Object
+    description: Man-made metallic object
+    base_priority: high
+    is_anomaly: false
+  4:
+    id: man_made_object
+    name: Man-made Object
+    description: Generic man-made underwater object
+    base_priority: medium
+    is_anomaly: false
+  5:
+    id: unknown_anomaly
+    name: Unknown Anomaly
+    description: Image region that does not match any known object pattern
+    base_priority: review
+    is_anomaly: true
+
+priority_rules:
+  high_confidence_threshold: 0.85
+  review_confidence_threshold: 0.40
+  size_high_area_ratio: 0.10
+  size_medium_area_ratio: 0.03
+  cluster_nearby_distance_px: 80
+  cluster_nearby_count: 3

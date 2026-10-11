@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ===== LIGHT MODE ===== */
+  :root {
+    --background: 200 30% 98%;
+    --foreground: 215 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 30% 12%;
+
+    --primary: 199 89% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 30% 94%;
+    --secondary-foreground: 215 30% 12%;
+
+    --muted: 210 30% 94%;
+    --muted-foreground: 215 16% 38%;
+
+    --accent: 199 89% 38%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 20% 88%;
+    --input: 215 20% 92%;
+    --ring: 199 89% 38%;
+
+    --radius: 0.5rem;
+  }
+
+  /* ===== DARK MODE ===== */
+  .dark {
+    --background: 210 50% 5%;
+    --foreground: 200 20% 96%;
+
+    --card: 210 40% 8%;
+    --card-foreground: 200 20% 96%;
+
+    --popover: 210 40% 7%;
+    --popover-foreground: 200 20% 96%;
+
+    --primary: 199 89% 48%;
+    --primary-foreground: 210 50% 5%;
+
+    --secondary: 215 25% 14%;
+    --secondary-foreground: 200 20% 96%;
+
+    --muted: 215 25% 14%;
+    --muted-foreground: 200 12% 70%;
+
+    --accent: 199 89% 48%;
+    --accent-foreground: 210 50% 5%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 200 20% 96%;
+
+    --border: 215 25% 16%;
+    --input: 215 25% 14%;
+    --ring: 199 89% 48%;
+  }
+
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  * {
+    @apply border-border;
+  }
+}
+
+@layer utilities {
+  .sonar-grid {
+    background-image:
+      linear-gradient(hsl(var(--primary) / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.05) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+
+  .glass {
+    background: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--primary) / 0.12);
+  }
+}
+
+/* ===== THEME-AWARE LEAFLET ===== */
+.leaflet-container {
+  background: hsl(var(--background)) !important;
+}
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+}
+.leaflet-popup-content {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+}
+.leaflet-control-attribution {
+  background: hsl(var(--card) / 0.8) !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+.leaflet-control-attribution a {
+  color: hsl(var(--primary)) !important;
+}
+
+/* Light mode tiles: use the light Carto basemap */
+:root:not(.dark) .leaflet-container { background: #e8eef5 !important; }
