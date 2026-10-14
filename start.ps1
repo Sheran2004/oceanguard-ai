@@ -1,152 +1,140 @@
-﻿# OceanGuard AI - Foolproof startup (PowerShell)
-# Run this from the project root.  Resolves paths relative to its own location,
-# so it works whether you extracted the zip as v4, v5, or any custom folder.
-#
-#   1. Stop any old backend/frontend processes
-#   2. Ensure the database is initialised and demo data is seeded
-#   3. Start the FastAPI backend on port 8000 in a new window
-#   4. Start the Vite frontend on port 5173 in a new window
-#   5. Verify both are responding
-#
-# After it finishes, open http://localhost:5173 and log in with
-#   demo-operator / demo123    (operator)
-#   admin / admin123           (admin)
-
-# Use Continue (not Stop) so harmless stderr noise (e.g. passlib's
-# "trapped error reading bcrypt version" warning) does not abort the script.
-$ErrorActionPreference = 'Continue'
+﻿# OceanGuard AI - Safe Startup
+$ErrorActionPreference = "Continue"
 
 $ProjectRoot = $PSScriptRoot
-if (-not $ProjectRoot) { $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition }
-$VenvPython  = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
+$VenvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 $FrontendDir = Join-Path $ProjectRoot "frontend"
 
-Write-Host ""
-Write-Host "=== OceanGuard AI Startup ===" -ForegroundColor Cyan
-Write-Host "Project root: $ProjectRoot"
-Write-Host ""
+$BackendPort = 8001
+$FrontendPort = 5173
 
-# Sanity checks
+Write-Host "`n=== OceanGuard AI Startup ===" -ForegroundColor Cyan
+
+# Validate project files
 if (-not (Test-Path $VenvPython)) {
-    Write-Host "[ERROR] Virtual environment not found at $VenvPython" -ForegroundColor Red
-    Write-Host "        Run FIX_VENV.ps1 first (uses Python 3.12)." -ForegroundColor Red
-    Read-Host "Press Enter to exit"
+    Write-Host "[ERROR] Virtual environment not found." -ForegroundColor Red
     exit 1
 }
+
 if (-not (Test-Path (Join-Path $FrontendDir "package.json"))) {
-    Write-Host "[ERROR] frontend\package.json missing.  Run this from the project root." -ForegroundColor Red
-    Read-Host "Press Enter to exit"
+    Write-Host "[ERROR] frontend\package.json not found." -ForegroundColor Red
     exit 1
 }
 
-# Kill old processes
-Write-Host "[1/5] Killing any old backend/frontend processes..." -ForegroundColor Yellow
+# Check whether backend is already healthy
+Write-Host "`n[1/5] Checking backend..." -ForegroundColor Yellow
+$backendReady = $false
+
 try {
-    Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue |
-        ForEach-Object { try { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } catch {} }
-    Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue |
-        ForEach-Object { try { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } catch {} }
+    $response = Invoke-RestMethod "http://127.0.0.1:$BackendPort/health" -TimeoutSec 3
+    if ($response.status -eq "ok") {
+        $backendReady = $true
+        Write-Host "Existing backend is healthy; reusing it." -ForegroundColor Green
+    }
 } catch {}
-Start-Sleep -Seconds 2
-Write-Host "  Done." -ForegroundColor Green
-Write-Host ""
 
-# Initialise database and seed
-Write-Host "[2/5] Initialising database and seeding demo data..." -ForegroundColor Yellow
-Set-Location $ProjectRoot
+# Start backend only when needed and port is free
+if (-not $backendReady) {
+    $connection = Get-NetTCPConnection -LocalPort $BackendPort -State Listen -ErrorAction SilentlyContinue
 
-# Create .env from .env.example if missing
-if (-not (Test-Path (Join-Path $ProjectRoot ".env"))) {
-    if (Test-Path (Join-Path $ProjectRoot ".env.example")) {
-        Copy-Item (Join-Path $ProjectRoot ".env.example") (Join-Path $ProjectRoot ".env")
-        Write-Host "  Created .env from .env.example" -ForegroundColor Green
+    if ($connection) {
+        Write-Host "[ERROR] Port $BackendPort is occupied by an unhealthy service." -ForegroundColor Red
+        Write-Host "Inspect the process before stopping anything." -ForegroundColor Yellow
+        exit 1
+    }
+
+    Write-Host "Starting backend..." -ForegroundColor Yellow
+
+    $backendCmd = "Set-Location '$ProjectRoot'; & '$VenvPython' -m uvicorn app.main:app --app-dir '$ProjectRoot\backend' --host 127.0.0.1 --port $BackendPort"
+
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCmd
+
+    for ($i = 0; $i -lt 60; $i++) {
+        Start-Sleep -Seconds 2
+        try {
+            $response = Invoke-RestMethod "http://127.0.0.1:$BackendPort/health" -TimeoutSec 3
+            if ($response.status -eq "ok") {
+                $backendReady = $true
+                break
+            }
+        } catch {}
+    }
+
+    if (-not $backendReady) {
+        Write-Host "[ERROR] Backend did not become healthy. Check its window." -ForegroundColor Red
+        exit 1
     }
 }
 
-# Run the helper script.  We swallow stderr (2>$null) to hide the harmless
-# passlib "trapped error reading bcrypt version" warning that bcrypt 4.x emits
-# but which does NOT affect functionality.  We also use Continue error
-# preference to make sure non-terminating errors don't abort us.
-$initResult = & $VenvPython (Join-Path $ProjectRoot "scripts/oceanguard_init.py") 2>$null
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  [WARN] init_db helper exited with code $LASTEXITCODE" -ForegroundColor Red
-    Write-Host "  Output: $initResult" -ForegroundColor Red
-}
-foreach ($line in $initResult) { Write-Host "  $line" }
+# Check frontend
+Write-Host "`n[2/5] Checking frontend..." -ForegroundColor Yellow
+$frontendReady = $false
 
-$userCount = ($initResult | Select-String -Pattern "^USERS=(\d+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) | Select-Object -First 1
-$scanCount = ($initResult | Select-String -Pattern "^SCANS=(\d+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) | Select-Object -First 1
+try {
+    $null = Invoke-WebRequest "http://127.0.0.1:$FrontendPort" -UseBasicParsing -TimeoutSec 3
+    $frontendReady = $true
+    Write-Host "Existing frontend is responding; reusing it." -ForegroundColor Green
+} catch {}
 
-if ([int]$userCount -lt 1) {
-    Write-Host "  [WARN] No users in DB - seeding may have failed." -ForegroundColor Red
-}
-if ([int]$scanCount -lt 1) {
-    Write-Host "  No scans in DB - generating demo data (8 scans, 2 missions)..." -ForegroundColor Yellow
-    # Suppress stderr here too for the same reason.
-    $seedOutput = & $VenvPython (Join-Path $ProjectRoot "scripts/generate_demo_data.py") --clear --scans 8 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  [WARN] Demo data seeding failed - login still works but pages will be empty." -ForegroundColor Red
-    } else {
-        Write-Host "  Demo data generated successfully." -ForegroundColor Green
+# Start frontend only when needed
+if (-not $frontendReady) {
+    $connection = Get-NetTCPConnection -LocalPort $FrontendPort -State Listen -ErrorAction SilentlyContinue
+
+    if ($connection) {
+        Write-Host "[ERROR] Port $FrontendPort is occupied by an unresponsive service." -ForegroundColor Red
+        Write-Host "Inspect the process before stopping anything." -ForegroundColor Yellow
+        exit 1
     }
-} else {
-    Write-Host "  Database already has $scanCount scans - skipping seed." -ForegroundColor Green
+
+    if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
+        Write-Host "Installing frontend dependencies..." -ForegroundColor Yellow
+        Push-Location $FrontendDir
+        try {
+            npm install
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "[ERROR] npm install failed." -ForegroundColor Red
+                exit 1
+            }
+        } finally {
+            Pop-Location
+        }
+    }
+
+    Write-Host "Starting frontend..." -ForegroundColor Yellow
+    $frontendCmd = "Set-Location '$FrontendDir'; npm run dev -- --host 127.0.0.1 --port $FrontendPort --strictPort"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", $frontendCmd
+
+    for ($i = 0; $i -lt 30; $i++) {
+        Start-Sleep -Seconds 1
+        try {
+            $null = Invoke-WebRequest "http://127.0.0.1:$FrontendPort" -UseBasicParsing -TimeoutSec 3
+            $frontendReady = $true
+            break
+        } catch {}
+    }
 }
-Write-Host ""
 
-# Start backend
-Write-Host "[3/5] Starting backend on port 8000..." -ForegroundColor Yellow
-$backendCmd = "cd `"$ProjectRoot`" ; `"$VenvPython`" -m uvicorn app.main:app --app-dir `"$ProjectRoot/backend`" --host 0.0.0.0 --port 8000"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCmd -WindowStyle Normal
-Start-Sleep -Seconds 6
-Write-Host "  Done." -ForegroundColor Green
-Write-Host ""
-
-# Start frontend
-Write-Host "[4/5] Starting frontend on port 5173..." -ForegroundColor Yellow
-# Install node_modules if missing (first run only)
-if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
-    Write-Host "  First run: installing frontend dependencies (npm install, 2-3 minutes)..." -ForegroundColor Yellow
-    Push-Location $FrontendDir
-    try { npm install 2>&1 | Select-Object -Last 5 } catch { Write-Host "  [WARN] npm install failed" -ForegroundColor Red }
-    Pop-Location
+if (-not $frontendReady) {
+    Write-Host "[ERROR] Frontend did not respond. Check its window." -ForegroundColor Red
+    exit 1
 }
-$frontendCmd = "cd `"$FrontendDir`" ; npm run dev"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", $frontendCmd -WindowStyle Normal
-Start-Sleep -Seconds 15
-Write-Host "  Done." -ForegroundColor Green
-Write-Host ""
 
-# Verify
-Write-Host "[5/5] Verifying..." -ForegroundColor Yellow
-Start-Sleep -Seconds 3
-$backendOk = $false
+# Final verification
+Write-Host "`n[3/5] Verifying API..." -ForegroundColor Yellow
+
 try {
-    $h = Invoke-WebRequest "http://localhost:8000/health" -UseBasicParsing -TimeoutSec 5
-    Write-Host "  Backend  : $($h.StatusCode) OK" -ForegroundColor Green
-    $backendOk = $true
+    $health = Invoke-RestMethod "http://127.0.0.1:$BackendPort/health" -TimeoutSec 5
+
+    Write-Host "Backend : HEALTHY" -ForegroundColor Green
+    Write-Host "Model   : $($health.model.name)" -ForegroundColor Green
+    Write-Host "Demo mode: $($health.model.demo_mode)" -ForegroundColor Green
 } catch {
-    Write-Host "  Backend  : NOT responding" -ForegroundColor Red
-}
-try {
-    Invoke-WebRequest "http://localhost:5173" -UseBasicParsing -TimeoutSec 5 | Out-Null
-    Write-Host "  Frontend : OK" -ForegroundColor Green
-} catch {
-    Write-Host "  Frontend : NOT responding" -ForegroundColor Red
+    Write-Host "[ERROR] Backend health check failed." -ForegroundColor Red
+    exit 1
 }
 
-Write-Host ""
-Write-Host "=== Ready ===" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Open in browser:  " -NoNewline -ForegroundColor White
-Write-Host "http://localhost:5173" -ForegroundColor Green
-Write-Host ""
-Write-Host "Login credentials:" -ForegroundColor White
-Write-Host "  Operator: " -NoNewline -ForegroundColor White
-Write-Host "demo-operator / demo123" -ForegroundColor Green
-Write-Host "  Admin   : " -NoNewline -ForegroundColor White
-Write-Host "admin / admin123" -ForegroundColor Green
-Write-Host ""
-Write-Host "Two PowerShell windows opened (backend + frontend).  KEEP THEM OPEN." -ForegroundColor Yellow
-Write-Host ""
-Read-Host "Press Enter to close this window"
+Write-Host "`n=== OceanGuard AI Ready ===" -ForegroundColor Green
+Write-Host "Frontend : http://127.0.0.1:$FrontendPort"
+Write-Host "Backend  : http://127.0.0.1:$BackendPort"
+Write-Host "API Docs : http://127.0.0.1:$BackendPort/docs"
+Write-Host "`nExisting healthy servers were reused; unrelated processes were not stopped."

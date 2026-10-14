@@ -76,3 +76,6 @@ backend/scan_*_overlay.png
 # Backup environment files
 .env.backup
 .env.local
+
+# Local backup files
+*.backup
