@@ -380,12 +380,37 @@ export function SonarAnalysisPage() {
           <CardHeader>
             <CardTitle>Detections</CardTitle>
             <CardDescription>
-              {detections.length === 0
-                ? systemInfo?.is_real_model
-                  ? 'No objects detected by the configured model.'
-                  : 'No detections available. A trained sonar model is not configured; no AI predictions were generated.'
-                : `${detections.length} detection${detections.length === 1 ? '' : 's'} on this scan.`}
-            </CardDescription>
+  {detections.length === 0 ? (
+    <div className="space-y-2">
+      {systemInfo?.is_real_model ? (
+        <>
+          <p className="font-medium text-foreground">
+            No objects detected at the current confidence threshold.
+          </p>
+
+          <p>
+            The AI model did not find any objects with sufficient confidence
+            in this image. This does not confirm that the image is free of
+            marine debris.
+          </p>
+
+          <p>
+            The model was trained on a water-tank sonar dataset. Results may
+            vary on images from different sonar systems or environments.
+            Verify important findings manually.
+          </p>
+        </>
+      ) : (
+        <p>
+          No detections are available because a trained sonar model is not
+          configured. No AI predictions were generated.
+        </p>
+      )}
+    </div>
+  ) : (
+    `${detections.length} detection${detections.length === 1 ? '' : 's'} on this scan.`
+  )}
+</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 max-h-[60vh] overflow-y-auto scrollbar-thin pr-1">
             {detections.map((d, idx) => (

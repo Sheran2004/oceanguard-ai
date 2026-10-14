@@ -59,3 +59,20 @@ Thumbs.db
 .coverage.*
 coverage.xml
 frontend/audit-report.json
+
+# Datasets and training artifacts
+backend/datasets/
+runs/
+**/runs/
+*.cache
+*.pt
+*.pth
+*.onnx
+*.engine
+
+# Local scan artifacts
+backend/scan_*_overlay.png
+
+# Backup environment files
+.env.backup
+.env.local

@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 300
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(PROJECT_ROOT / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
         protected_namespaces=("settings_",),

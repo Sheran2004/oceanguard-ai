@@ -68,7 +68,10 @@ class InferenceEngine:
         self.iou_threshold = float(iou_threshold)
         self.anomaly_threshold = float(anomaly_threshold)
         self._bundle: Optional[ModelBundle] = None
-        self._anomaly: AnomalyDetector = AnomalyDetector(threshold=anomaly_threshold)
+        self._yolo_model = None
+        self._anomaly: AnomalyDetector = AnomalyDetector(
+            threshold=anomaly_threshold
+        )
         self._classes: dict = load_classes_config()
 
     # ---------------- lifecycle ----------------
@@ -134,7 +137,10 @@ class InferenceEngine:
         for box in nms_boxes:
             class_id = int(box.get("class_id", 0))
             class_meta = classes.get(class_id, {})
-            class_name = class_meta.get("name", f"class_{class_id}")
+            class_name = box.get(
+                "class_name",
+                class_meta.get("name", f"class_{class_id}"),
+            )
 
             confidence = calibrate_confidence(float(box.get("score", 0.0)))
             box_width = max(0.0, box["x2"] - box["x1"])
@@ -143,7 +149,7 @@ class InferenceEngine:
                 box_width * box_height / image_area if image_area > 0 else 0.0
             )
 
-            is_anomaly = bool(class_meta.get("is_anomaly", False)) or class_id == 5
+            is_anomaly = bool(class_meta.get("is_anomaly", False))
             anomaly_score = 0.0
 
             explanation = (
@@ -188,44 +194,69 @@ class InferenceEngine:
         return int.from_bytes(digest[:4], "big")
 
     def _predict_real(self, image: np.ndarray) -> list[dict]:
-        """Run inference using the configured trained model."""
+        """Run inference using the cached trained YOLO model."""
         try:
             from ultralytics import YOLO
 
-            model = YOLO(str(self.bundle.path))
-            results = model.predict(
+            # Load the model only once per inference engine.
+            if self._yolo_model is None:
+                self._yolo_model = YOLO(str(self.bundle.path))
+                logger.info(
+                    "YOLO model initialized for inference: %s",
+                    self.bundle.path,
+                )
+
+            settings_device = "cpu"
+
+            results = self._yolo_model.predict(
                 image,
                 conf=self.confidence_threshold,
                 iou=self.iou_threshold,
+                device=settings_device,
                 verbose=False,
             )
 
             boxes: list[dict] = []
+            model_names = self._yolo_model.names
 
             for result in results:
-                if not hasattr(result, "boxes") or result.boxes is None:
+                if result.boxes is None:
                     continue
 
                 for box in result.boxes:
                     xyxy = box.xyxy[0].cpu().numpy().tolist()
-                    score = float(box.conf[0].cpu().numpy())
-                    class_id = int(box.cls[0].cpu().numpy())
+                    score = float(box.conf[0].cpu().item())
+                    class_id = int(box.cls[0].cpu().item())
 
-                    boxes.append({
-                        "x1": xyxy[0],
-                        "y1": xyxy[1],
-                        "x2": xyxy[2],
-                        "y2": xyxy[3],
-                        "score": score,
-                        "class_id": class_id,
-                    })
+                    if isinstance(model_names, dict):
+                        class_name = model_names.get(
+                            class_id, f"class_{class_id}"
+                        )
+                    else:
+                        class_name = (
+                            model_names[class_id]
+                            if 0 <= class_id < len(model_names)
+                            else f"class_{class_id}"
+                        )
+
+                    boxes.append(
+                        {
+                            "x1": float(xyxy[0]),
+                            "y1": float(xyxy[1]),
+                            "x2": float(xyxy[2]),
+                            "y2": float(xyxy[3]),
+                            "score": score,
+                            "class_id": class_id,
+                            "class_name": class_name,
+                        }
+                    )
 
             return boxes
 
         except Exception as exc:
-            logger.exception("Real model inference failed: %s", exc)
+            logger.exception("Real model inference failed")
             raise RuntimeError(
-                "Model inference failed. Check the trained weights and dependencies."
+                f"Model inference failed: {exc}"
             ) from exc
 
     def _predict_demo(self, enhanced: np.ndarray, *, image_id_seed: int) -> list[dict]:

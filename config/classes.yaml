@@ -1,44 +1,83 @@
-# OceanGuard AI - Object Class Configuration
-# Maps class IDs to human-readable names and priority hints.
-# Edit this file to add or rename classes without changing code.
+# OceanGuard AI - Marine Debris Detection Classes
+# Class IDs must match the trained YOLO model's class order.
 
 classes:
   0:
-    id: marine_debris
-    name: Marine Debris
-    description: General underwater debris of uncertain origin
+    id: bottle
+    name: Bottle
+    description: Bottle detected in the underwater tank dataset
     base_priority: medium
     is_anomaly: false
+
   1:
-    id: fishing_net
-    name: Fishing Net
-    description: Net-like structure, often discarded fishing gear
-    base_priority: high
+    id: can
+    name: Can
+    description: Can detected in the underwater tank dataset
+    base_priority: medium
     is_anomaly: false
+
   2:
-    id: plastic_debris
-    name: Plastic Debris
-    description: Plastic-like debris field
+    id: chain
+    name: Chain
+    description: Chain or linked metal structure
     base_priority: medium
     is_anomaly: false
+
   3:
-    id: metal_object
-    name: Metal Object
-    description: Man-made metallic object
+    id: drink_carton
+    name: Drink Carton
+    description: Drink carton detected underwater
+    base_priority: medium
+    is_anomaly: false
+
+  4:
+    id: hook
+    name: Hook
+    description: Hook-shaped underwater object
     base_priority: high
     is_anomaly: false
-  4:
-    id: man_made_object
-    name: Man-made Object
-    description: Generic man-made underwater object
+
+  5:
+    id: propeller
+    name: Propeller
+    description: Propeller detected underwater
+    base_priority: high
+    is_anomaly: false
+
+  6:
+    id: shampoo_bottle
+    name: Shampoo Bottle
+    description: Shampoo bottle detected underwater
     base_priority: medium
     is_anomaly: false
-  5:
-    id: unknown_anomaly
-    name: Unknown Anomaly
-    description: Image region that does not match any known object pattern
-    base_priority: review
-    is_anomaly: true
+
+  7:
+    id: standing_bottle
+    name: Standing Bottle
+    description: Standing bottle detected underwater
+    base_priority: medium
+    is_anomaly: false
+
+  8:
+    id: tire
+    name: Tire
+    description: Tire detected underwater
+    base_priority: high
+    is_anomaly: false
+
+  9:
+    id: valve
+    name: Valve
+    description: Valve or mechanical component detected underwater
+    base_priority: high
+    is_anomaly: false
+
+  10:
+    id: wall
+    name: Wall
+    description: Wall or tank structure present in the image
+    base_priority: low
+    is_anomaly: false
 
 priority_rules:
   high_confidence_threshold: 0.85

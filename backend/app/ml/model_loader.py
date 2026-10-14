@@ -1,21 +1,21 @@
-"""Model loading utilities. The real implementation would call ultralytics.
+"""Model loading utilities for OceanGuard AI."""
 
-To keep the demo runnable without GPU/PyTorch we detect whether the requested
-model file actually exists and otherwise fall back to a deterministic
-"DemoModelBundle" that returns structured placeholder predictions.
-"""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 from app.utils.config import get_settings
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class ModelBundle:
-    """Represents a loaded (or demo) model."""
+    """Metadata for a real or demo model."""
+
     name: str
     version: str
     model_type: str
@@ -35,41 +35,60 @@ class ModelBundle:
 
 
 def load_model(model_path: Optional[Path] = None) -> ModelBundle:
-    """Load a real model if available, otherwise return the demo bundle.
+    """Validate and load the configured model.
 
-    The function never raises. It is safe to call at module import time.
+    Demo mode is allowed only when explicitly enabled.
+    Model-loading failures are logged and raised when demo mode is disabled.
     """
     settings = get_settings()
-    path = model_path or settings.model_path_abs
+    path = Path(model_path or settings.model_path_abs)
+
     name = settings.model_name
     version = settings.model_version
     model_type = settings.model_type
 
-    # Real model: try a lazy import. If ultralytics isn't installed we fall back.
-    if settings.enable_demo_mode is False and path.exists() and path.suffix in {".pt", ".onnx", ".weights"}:
-        try:  # pragma: no cover - depends on optional deps
-            from ultralytics import YOLO  # type: ignore
+    if settings.enable_demo_mode:
+        logger.warning(
+            "Demo mode is enabled. Real model inference is disabled."
+        )
+        return ModelBundle(
+            name=name,
+            version=version,
+            model_type=f"{model_type}-demo",
+            path=path,
+            is_real=False,
+            description="Demo mode enabled; predictions must not be treated as real detections.",
+        )
 
-            _model = YOLO(str(path))
-            return ModelBundle(
-                name=name,
-                version=version,
-                model_type=model_type,
-                path=path,
-                is_real=True,
-                description=f"Loaded real model from {path}",
-            )
-        except Exception:
-            pass
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"Configured model file does not exist: {path}"
+        )
+
+    if path.suffix.lower() not in {".pt", ".onnx", ".weights"}:
+        raise ValueError(
+            f"Unsupported model file extension: {path.suffix}"
+        )
+
+    try:
+        from ultralytics import YOLO
+
+        # Validate that the trained model can actually be loaded.
+        YOLO(str(path))
+
+    except Exception as exc:
+        logger.exception("Failed to load OceanGuard model from %s", path)
+        raise RuntimeError(
+            f"Could not load the configured YOLO model at {path}: {exc}"
+        ) from exc
+
+    logger.info("OceanGuard model loaded successfully: %s", path)
 
     return ModelBundle(
         name=name,
         version=version,
-        model_type=f"{model_type}-demo",
-        path=path if path.exists() else Path("(no file)"),
-        is_real=False,
-        description=(
-            "DEMO INFERENCE — NOT A VALIDATED DEPLOYMENT MODEL. "
-            "Predictions are deterministically generated for prototype demonstration."
-        ),
+        model_type=model_type,
+        path=path,
+        is_real=True,
+        description=f"Trained YOLO model loaded from {path}",
     )
