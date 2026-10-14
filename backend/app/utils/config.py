@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     model_type: str = "yolov8"
     model_name: str = "OceanGuard-YOLO-v1"
     model_version: str = "1.0"
-    confidence_threshold: float = 0.25
+    confidence_threshold: float = 0.10
     iou_threshold: float = 0.45
     device: str = "cpu"
     anomaly_threshold: float = 0.65

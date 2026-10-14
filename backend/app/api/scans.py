@@ -143,6 +143,7 @@ def list_scans(
     if is_demo is not None:
         scans = [s for s in scans if s.is_demo == is_demo]
     return [_scan_to_dict(s, include_detections=False) for s in scans]
+    
 
 
 @router.get("/{scan_id}")

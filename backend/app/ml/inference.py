@@ -60,7 +60,7 @@ class InferenceEngine:
 
     def __init__(
         self,
-        confidence_threshold: float = 0.25,
+        confidence_threshold: float = 0.10,
         iou_threshold: float = 0.45,
         anomaly_threshold: float = 0.65,
     ) -> None:
@@ -257,7 +257,7 @@ class InferenceEngine:
             logger.exception("Real model inference failed")
             raise RuntimeError(
                 f"Model inference failed: {exc}"
-            ) from exc
+            ) from excconfidence_threshold
 
     def _predict_demo(self, enhanced: np.ndarray, *, image_id_seed: int) -> list[dict]:
         """Produce deterministic, content-aware predictions for demo mode.

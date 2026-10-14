@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, AlertTriangle, Database, Radio } from 'lucide-react';
+import { Activity, Database, Radio } from 'lucide-react';
 import { api } from '@/services/api';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
@@ -56,9 +56,6 @@ export function Topbar() {
         </Badge>
         <Badge tone="purple" className="gap-1">
           <Database className="h-3 w-3" /> v1.0
-        </Badge>
-        <Badge tone="amber" className="gap-1">
-          <AlertTriangle className="h-3 w-3" /> Demo
         </Badge>
       </div>
     </header>
