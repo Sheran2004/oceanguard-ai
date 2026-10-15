@@ -57,6 +57,26 @@ export async function login(username: string, password: string) {
   }>;
 }
 
+export async function register(payload: {
+  username: string;
+  password: string;
+  email?: string;
+  full_name?: string;
+}) {
+  const res = await fetch(apiUrl('/auth/register'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `${res.status} ${res.statusText}`);
+  }
+
+  return res.json() as Promise<AuthUser>;
+}
+
 export async function fetchMe(token: string): Promise<AuthUser> {
   const res = await fetch(apiUrl('/auth/me'), {
     headers: { Authorization: `Bearer ${token}` },
