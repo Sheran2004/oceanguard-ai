@@ -24,5 +24,5 @@ pytest==8.2.2
 pytest-asyncio==0.23.7
 
 # Optional ML dependencies (kept lightweight for demo mode)
-# torch==2.3.0
-# ultralytics==8.2.38
+torch==2.3.0
+ultralytics==8.2.38
