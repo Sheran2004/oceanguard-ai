@@ -50,6 +50,9 @@ COPY backend/app ./app
 COPY config ./config
 COPY scripts ./scripts
 
+# Copy trained sonar model
+COPY runs/detect/backend/runs/oceanguard_sonar_v1/weights/best.pt ./runs/detect/backend/runs/oceanguard_sonar_v1/weights/best.pt
+
 # Set up runtime dirs
 RUN mkdir -p /app/uploads /app/reports /app/data && \
     chown -R app:app /app
